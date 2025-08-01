@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Realistic 3D Electric Components Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.134.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <button id="nav-toggle" aria-label="Toggle navigation panel">☰</button>
+    <div id="nav-panel">
+        <h2 style="text-align: center; margin: 0 0 25px; color: #90caf9; font-size: 22px;">Components</h2>
+        
+        <!-- File Upload -->
+        <div class="category">
+            <div class="category-title">Upload Component Data</div>
+            <input type="file" id="xlsx-upload" accept=".xlsx" style="width: 100%; padding: 10px; margin-bottom: 10px;">
+            <button onclick="processXLSXFile()" class="component-btn">Load Data</button>
+        </div>
+        
+        <div class="category">
+            <div class="category-title">Basic Components</div>
+            <button class="component-btn" data-type="resistor" onclick="showComponent('resistor')">Resistor</button>
+            <button class="component-btn" data-type="capacitor" onclick="showComponent('capacitor')">Capacitor</button>
+            <button class="component-btn" data-type="inductor" onclick="showComponent('inductor')">Inductor</button>
+            <button class="component-btn" data-type="diode" onclick="showComponent('diode')">Diode</button>
+            <button class="component-btn" data-type="led" onclick="showComponent('led')">LED</button>
+            <button class="component-btn" data-type="transistor" onclick="toggleTransistorMenu()">Transistor</button>
+            <div id="transistor-sub-menu" class="sub-menu">
+                <button class="sub-btn" data-type="bjt" onclick="showComponent('bjt')">BJT</button>
+                <button class="sub-btn" data-type="fet" onclick="showComponent('fet')">FET</button>
+                <button class="sub-btn" data-type="mosfet" onclick="showComponent('mosfet')">MOSFET</button>
+                <button class="sub-btn" data-type="jfet" onclick="showComponent('jfet')">JFET</button>
+                <button class="sub-btn" data-type="igbt" onclick="showComponent('igbt')">IGBT</button>
+                <button class="sub-btn" data-type="ujt" onclick="showComponent('ujt')">UJT</button>
+                <button class="sub-btn" data-type="phototransistor" onclick="showComponent('phototransistor')">Phototransistor</button>
+            </div>
+            <button class="component-btn" data-type="breadboard" onclick="showComponent('breadboard')">Breadboard</button>
+            <button class="component-btn" data-type="wire" onclick="showComponent('wire')">Connecting Wire</button>
+        </div>
+        
+        <div class="category">
+            <div class="category-title">Power Sources</div>
+            <button class="component-btn" data-type="dcsource" onclick="showComponent('dcsource')">DC Source</button>
+            <button class="component-btn" data-type="acsource" onclick="showComponent('acsource')">AC Source</button>
+            <button class="component-btn" data-type="battery" onclick="showComponent('battery')">Battery (9V)</button>
+            <button class="component-btn" data-type="batterypack" onclick="showComponent('batterypack')">Battery Pack</button>
+            <button class="component-btn" data-type="solarpanel" onclick="showComponent('solarpanel')">Solar Panel</button>
+        </div>
+        
+        <div class="category">
+            <div class="category-title">Motors</div>
+            <button class="component-btn" data-type="dcmotor" onclick="showComponent('dcmotor')">DC Motor</button>
+            <button class="component-btn" data-type="steppermotor" onclick="showComponent('steppermotor')">Stepper Motor</button>
+            <button class="component-btn" data-type="servomotor" onclick="showComponent('servomotor')">Servo Motor</button>
+        </div>
+    </div>
+    
+    <div id="viewer-container">
+        <div id="info">3D Electric Component Viewer - Rotate: Left-click | Zoom: Scroll | Toggle Info: Click</div>
+        <div id="loading">Loading...</div>
+        
+        <!-- Info panels for all components -->
+        <div id="resistor-info" class="compound-info">
+            <h3>Resistor</h3>
+            <p><strong>Function:</strong> Limits current flow, converts electrical energy to heat.</p>
+            <p><strong>Symbol:</strong> R</p>
+            <p><strong>Unit:</strong> Ω (Ohm)</p>
+            <p><strong>Color Code:</strong> <span id="resistor-color-code">Brown-Black-Red-Gold (1kΩ ±5%)</span></p>
+            <p><strong>Power Rating:</strong> 0.25W</p>
+        </div>
+        
+        <div id="capacitor-info" class="compound-info">
+            <h3>Capacitor</h3>
+            <p><strong>Function:</strong> Stores energy in an electric field.</p>
+            <p><strong>Symbol:</strong> C</p>
+            <p><strong>Unit:</strong> F (Farad)</p>
+            <p><strong>Value:</strong> <span id="capacitor-value">100μF</span> Electrolytic</p>
+            <p><strong>Voltage Rating:</strong> 16V</p>
+        </div>
+        
+        <div id="inductor-info" class="compound-info">
+            <h3>Inductor</h3>
+            <p><strong>Function:</strong> Stores energy in a magnetic field.</p>
+            <p><strong>Symbol:</strong> L</p>
+            <p><strong>Unit:</strong> H (Henry)</p>
+            <p><strong>Value:</strong> <span id="inductor-value">10mH</span></p>
+            <p><strong>Core Type:</strong> Ferrite</p>
+        </div>
+        
+        <div id="diode-info" class="compound-info">
+            <h3>Diode</h3>
+            <p><strong>Function:</strong> Allows current in one direction.</p>
+            <p><strong>Type:</strong> 1N4148 Signal Diode</p>
+            <p><strong>Forward Voltage:</strong> 0.7V</p>
+            <p><strong>Max Current:</strong> 200mA</p>
+        </div>
+        
+        <div id="led-info" class="compound-info">
+            <h3>LED</h3>
+            <p><strong>Function:</strong> Emits light when current flows.</p>
+            <p><strong>Color:</strong> <span id="led-color">Green</span></p>
+            <p><strong>Forward Voltage:</strong> 2.1V</p>
+            <p><strong>Current:</strong> 20mA max</p>
+            <p><strong>Wavelength:</strong> <span id="led-wavelength">565nm</span></p>
+        </div>
+        
+        <div id="bjt-info" class="compound-info">
+            <h3>BJT (Bipolar Junction Transistor)</h3>
+            <p><strong>Type:</strong> NPN (2N3904)</p>
+            <p><strong>Function:</strong> Amplification/Switching</p>
+            <p><strong>Pins:</strong> Collector, Base, Emitter</p>
+            <p><strong>Max Current:</strong> 200mA</p>
+            <p><strong>Gain:</strong> 100-300</p>
+        </div>
+        
+        <div id="fet-info" class="compound-info">
+            <h3>FET (Field Effect Transistor)</h3>
+            <p><strong>Type:</strong> General FET</p>
+            <p><strong>Function:</strong> Voltage-controlled switch/amplifier</p>
+            <p><strong>Pins:</strong> Drain, Gate, Source</p>
+            <p><strong>Max Voltage:</strong> Varies</p>
+            <p><strong>Feature:</strong> High input impedance</p>
+        </div>
+        
+        <div id="mosfet-info" class="compound-info">
+            <h3>MOSFET</h3>
+            <p><strong>Type:</strong> IRF540N</p>
+            <p><strong>Function:</strong> Power switching/amplification</p>
+            <p><strong>Pins:</strong> Drain, Gate, Source</p>
+            <p><strong>Max Voltage:</strong> 100V</p>
+            <p><strong>Max Current:</strong> 33A</p>
+        </div>
+        
+        <div id="jfet-info" class="compound-info">
+            <h3>JFET (Junction FET)</h3>
+            <p><strong>Type:</strong> J111</p>
+            <p><strong>Function:</strong> Analog switching/amplification</p>
+            <p><strong>Pins:</strong> Drain, Gate, Source</p>
+            <p><strong>Max Voltage:</strong> 35V</p>
+            <p><strong>Feature:</strong> Normally-on</p>
+        </div>
+        
+        <div id="igbt-info" class="compound-info">
+            <h3>IGBT (Insulated Gate Bipolar Transistor)</h3>
+            <p><strong>Type:</strong> General IGBT</p>
+            <p><strong>Function:</strong> High-power switching</p>
+            <p><strong>Pins:</strong> Collector, Gate, Emitter</p>
+            <p><strong>Max Voltage:</strong> 600-1200V</p>
+            <p><strong>Feature:</strong> Combines MOSFET and BJT advantages</p>
+        </div>
+        
+        <div id="ujt-info" class="compound-info">
+            <h3>UJT (Unijunction Transistor)</h3>
+            <p><strong>Type:</strong> 2N2646</p>
+            <p><strong>Function:</strong> Oscillator/trigger device</p>
+            <p><strong>Pins:</strong> Emitter, Base1, Base2</p>
+            <p><strong>Max Voltage:</strong> 30V</p>
+            <p><strong>Feature:</strong> Negative resistance</p>
+        </div>
+        
+        <div id="phototransistor-info" class="compound-info">
+            <h3>Phototransistor</h3>
+            <p><strong>Type:</strong> General Phototransistor</p>
+            <p><strong>Function:</strong> Light-sensitive switching</p>
+            <p><strong>Pins:</strong> Collector, Emitter</p>
+            <p><strong>Max Voltage:</strong> 30V</p>
+            <p><strong>Feature:</strong> Light-activated</p>
+        </div>
+        
+        <div id="dcsource-info" class="compound-info">
+            <h3>DC Power Source</h3>
+            <p><strong>Function:</strong> Provides constant voltage/current</p>
+            <p><strong>Voltage Range:</strong> <span id="dcsource-voltage">0-24V</span> adjustable</p>
+            <p><strong>Current Limit:</strong> 1A max</p>
+            <p><strong>Type:</strong> Bench power supply</p>
+        </div>
+        
+        <div id="acsource-info" class="compound-info">
+            <h3>AC Power Source</h3>
+            <p><strong>Function:</strong> Provides alternating current</p>
+            <p><strong>Type:</strong> AC transformer</p>
+            <p><strong>Input Voltage:</strong> 120V</p>
+            <p><strong>Output Voltage:</strong> <span id="acsource-voltage">12V</span></p>
+            <p><strong>Frequency:</strong> 60Hz</p>
+        </div>
+        
+        <div id="battery-info" class="compound-info">
+            <h3>9V Battery</h3>
+            <p><strong>Type:</strong> Alkaline primary cell</p>
+            <p><strong>Voltage:</strong> 9V</p>
+            <p><strong>Capacity:</strong> ~500mAh</p>
+            <p><strong>Chemistry:</strong> Alkaline</p>
+        </div>
+        
+        <div id="batterypack-info" class="compound-info">
+            <h3>Battery Pack</h3>
+            <p><strong>Type:</strong> 4xAA battery holder</p>
+            <p><strong>Voltage:</strong> 6V (4x1.5V)</p>
+            <p><strong>Configuration:</strong> Series</p>
+            <p><strong>Capacity:</strong> 2000mAh</p>
+        </div>
+        
+        <div id="solarpanel-info" class="compound-info">
+            <h3>Solar Panel</h3>
+            <p><strong>Type:</strong> Polycrystalline photovoltaic cell</p>
+            <p><strong>Power:</strong> 5W</p>
+            <p><strong>Voltage:</strong> 6V</p>
+            <p><strong>Current:</strong> 0.8A max</p>
+            <p><strong>Cell Count:</strong> 12 cells</p>
+        </div>
+        
+        <div id="dcmotor-info" class="compound-info">
+            <h3>DC Motor</h3>
+            <p><strong>Type:</strong> Brushed DC motor</p>
+            <p><strong>Voltage Range:</strong> 6-12V</p>
+            <p><strong>Speed:</strong> 10,000 RPM (no load)</p>
+            <p><strong>Torque:</strong> 0.5kg/cm</p>
+        </div>
+        
+        <div id="steppermotor-info" class="compound-info">
+            <h3>Stepper Motor</h3>
+            <p><strong>Type:</strong> 28BYJ-48 with driver</p>
+            <p><strong>Steps:</strong> 2048 per revolution</p>
+            <p><strong>Voltage:</strong> 5V</p>
+            <p><strong>Reduction:</strong> 64:1</p>
+        </div>
+        
+        <div id="servomotor-info" class="compound-info">
+            <h3>Servo Motor</h3>
+            <p><strong>Type:</strong> SG90 Micro Servo</p>
+            <p><strong>Torque:</strong> 1.8kg/cm</p>
+            <p><strong>Rotation:</strong> 180 degrees</p>
+            <p><strong>Voltage:</strong> 4.8-6V</p>
+        </div>
+        
+        <div id="breadboard-info" class="compound-info">
+            <h3>Breadboard</h3>
+            <p><strong>Function:</strong> Prototyping platform for circuits</p>
+            <p><strong>Type:</strong> Solderless, 830 tie-points</p>
+            <p><strong>Power Rails:</strong> 2 (positive and negative)</p>
+            <p><strong>Ground Rails:</strong> 2 (both sides)</p>
+            <p><strong>Size:</strong> Standard half-size</p>
+        </div>
+        
+        <div id="wire-info" class="compound-info">
+            <h3>Connecting Wire</h3>
+            <p><strong>Function:</strong> Flexible circuit connections</p>
+            <p><strong>Type:</strong> 22 AWG, silicone-insulated</p>
+            <p><strong>Length:</strong> Stretchable up to 50cm</p>
+            <p><strong>Color:</strong> Multicolored</p>
+            <p><strong>Feature:</strong> Elastic and durable</p>
+        </div>
+        
+        <div id="value-panel">
+            <!-- Resistor Value Input -->
+            <div id="resistor-value-panel" style="display: none;">
+                <h3>Resistor Value</h3>
+                <label for="resistor-value">Value (Ω):</label>
+                <input type="number" id="resistor-value" min="1" step="1" value="1000">
+                <label for="resistor-tolerance">Tolerance:</label>
+                <select id="resistor-tolerance">
+                    <option value="5">±5% (Gold)</option>
+                    <option value="10">±10% (Silver)</option>
+                    <option value="20">±20% (No color)</option>
+                </select>
+                <button onclick="updateResistorValue()">Apply</button>
+            </div>
+            
+            <!-- Capacitor Value Input -->
+            <div id="capacitor-value-panel" style="display: none;">
+                <h3>Capacitor Value</h3>
+                <label for="capacitor-value">Value (μF):</label>
+                <input type="number" id="capacitor-value" min="1" step="1" value="100">
+                <button onclick="updateCapacitorValue()">Apply</button>
+            </div>
+            
+            <!-- Inductor Value Input -->
+            <div id="inductor-value-panel" style="display: none;">
+                <h3>Inductor Value</h3>
+                <label for="inductor-value">Value (mH):</label>
+                <input type="number" id="inductor-value" min="1" step="1" value="10">
+                <button onclick="updateInductorValue()">Apply</button>
+            </div>
+            
+            <!-- LED Color Picker -->
+            <div id="led-value-panel" style="display: none;">
+                <h3>LED Color</h3>
+                <label for="led-color-picker">Select Color:</label>
+                <input type="color" id="led-color-picker" value="#00FF00">
+                <button onclick="updateLEDColor()">Apply</button>
+            </div>
+            
+            <!-- DC Source Voltage -->
+            <div id="dcsource-value-panel" style="display: none;">
+                <h3>DC Source Voltage</h3>
+                <label for="dcsource-voltage">Voltage (V): <span id="dcsource-voltage-value">12</span></label>
+                <input type="range" id="dcsource-voltage" min="0" max="24" step="0.1" value="12" oninput="document.getElementById('dcsource-voltage-value').textContent = this.value">
+                <button onclick="updateDCSourceVoltage()">Apply</button>
+            </div>
+            
+            <!-- AC Source Voltage -->
+            <div id="acsource-value-panel" style="display: none;">
+                <h3>AC Source Voltage</h3>
+                <label for="acsource-voltage">Output Voltage (V): <span id="acsource-voltage-value">12</span></label>
+                <input type="range" id="acsource-voltage" min="6" max="24" step="0.1" value="12" oninput="document.getElementById('acsource-voltage-value').textContent = this.value">
+                <button onclick="updateACSourceVoltage()">Apply</button>
+            </div>
+        </div>
+        
+        <div id="controls">
+            <button onclick="resetView()" aria-label="Reset view">Reset View</button>
+            <button onclick="toggleInfo()" aria-label="Toggle info panel">Toggle Info</button>
+            <button onclick="toggleAnimation()" aria-label="Toggle animation">Toggle Animation</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'93c18f96cffaadcf',t:'MTc0NjYyOTc1My4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
+</body>
+</html>
